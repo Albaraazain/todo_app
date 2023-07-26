@@ -4,6 +4,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart'; // sqflite_common_ffi for 
 import 'package:path_provider/path_provider.dart'; // path_provider to get directory path
 import 'dart:io';
 import 'dart:async';
+import 'package:todo_app/models/todo.dart';
 
 // Initialize the FFI loader for sqflite_common_ffi
 void sqfliteFfiInit() {
@@ -11,42 +12,43 @@ void sqfliteFfiInit() {
 }
 
 class DatabaseHelper {
-  // Singleton instance of DatabaseHelper
-  static DatabaseHelper? _databaseHelper;
-  // Singleton instance of Database
-  static Database? _database;
+  static DatabaseHelper? _databaseHelper; // Singleton DatabaseHelper
+  static Database? _database; // Singleton Database
 
-  // Define the table and column names
   String todoTable = 'todo_table';
   String colId = 'id';
   String colTitle = 'title';
   String colDescription = 'description';
 
-  // Named constructor to create instance of DatabaseHelper
-  DatabaseHelper._createInstance();
+  DatabaseHelper._createInstance(); // Named constructor to create instance of DatabaseHelper
 
-  // Factory constructor to return the singleton instance of DatabaseHelper
   factory DatabaseHelper() {
-    // If _databaseHelper is null, initialize it. Otherwise, return the existing instance.
-    _databaseHelper ??= DatabaseHelper._createInstance();
+    if (_databaseHelper == null) {
+      _databaseHelper = DatabaseHelper
+          ._createInstance(); // This is executed only once, singleton object
+    }
     return _databaseHelper!;
   }
 
-  // Getter for _database
+  // Define a getter for the singleton instance
+  static DatabaseHelper get instance {
+    if (_databaseHelper == null) {
+      _databaseHelper = DatabaseHelper._createInstance();
+    }
+    return _databaseHelper!;
+  }
+
   Future<Database> get database async {
-    // If _database is null, initialize it. Otherwise, return the existing instance.
-    _database ??= await initializeDatabase();
+    if (_database == null) {
+      _database = await initializeDatabase();
+    }
     return _database!;
   }
 
-  // Method to initialize the database
   Future<Database> initializeDatabase() async {
-    // Get the directory path to store the database
     Directory directory = await getApplicationDocumentsDirectory();
-    // Use string interpolation to compose the database path
-    String path = '${directory.path}todos.db';
+    String path = directory.path + 'todos.db';
 
-    // Open/create the database at a given path, and create the table if it doesn't exist
     var todosDatabase =
         await openDatabase(path, version: 1, onCreate: _createDb);
     return todosDatabase;
@@ -57,5 +59,58 @@ class DatabaseHelper {
     // Execute a SQL query to create a new table with the specified columns
     await db.execute(
         'CREATE TABLE $todoTable($colId INTEGER PRIMARY KEY AUTOINCREMENT, $colTitle TEXT, $colDescription TEXT)');
+  }
+
+  // Insert a Todo object into the database
+  Future<int> insertTodo(Todo todo) async {
+    Database db = await this.database;
+    var result = await db.insert(todoTable, todo.toMap());
+    return result;
+  }
+
+// Retrieve all Todo objects from the database
+  Future<List<Map<String, dynamic>>> getTodoMapList() async {
+    Database db = await this.database;
+    var result = await db.query(todoTable);
+    return result;
+  }
+
+// Update a Todo object in the database
+  Future<int> updateTodo(Todo todo) async {
+    Database db = await this.database;
+    var result = await db.update(todoTable, todo.toMap(),
+        where: '$colId = ?', whereArgs: [todo.id]);
+    return result;
+  }
+
+// Delete a Todo object from the database
+  Future<int> deleteTodo(int id) async {
+    Database db = await this.database;
+    var result =
+        await db.rawDelete('DELETE FROM $todoTable WHERE $colId = $id');
+    return result;
+  }
+
+// Get the number of Todo objects in the database
+  Future<int> getCount() async {
+    Database db = await this.database;
+    List<Map<String, dynamic>> x =
+        await db.rawQuery('SELECT COUNT (*) from $todoTable');
+    int result = Sqflite.firstIntValue(x)!;
+    return result;
+  }
+
+// Get the 'Todo' list from the database
+  Future<List<Todo>> getTodoList() async {
+    var todoMapList = await getTodoMapList(); // Get 'Map List' from database
+    int count =
+        todoMapList.length; // Count the number of map entries in db table
+
+    List<Todo> todoList = [];
+    // For loop to create a 'Todo List' from a 'Map List'
+    for (int i = 0; i < count; i++) {
+      todoList.add(Todo.fromMap(todoMapList[i]));
+    }
+    return todoList;
   }
 }
