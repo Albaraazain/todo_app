@@ -1,15 +1,9 @@
 // Import the necessary packages
 import 'package:sqflite/sqflite.dart'; // sqflite package for SQLite in Flutter
-import 'package:sqflite_common_ffi/sqflite_ffi.dart'; // sqflite_common_ffi for Windows support
 import 'package:path_provider/path_provider.dart'; // path_provider to get directory path
 import 'dart:io';
 import 'dart:async';
 import 'package:todo_app/models/todo.dart';
-
-// Initialize the FFI loader for sqflite_common_ffi
-void sqfliteFfiInit() {
-  sqfliteFfiInit();
-}
 
 class DatabaseHelper {
   static DatabaseHelper? _databaseHelper; // Singleton DatabaseHelper
@@ -64,7 +58,11 @@ class DatabaseHelper {
   // Insert a Todo object into the database
   Future<int> insertTodo(Todo todo) async {
     Database db = await this.database;
-    var result = await db.insert(todoTable, todo.toMap());
+    var result = await db.insert(todoTable, {
+      'id': null, // SQLite will auto-generate a unique id
+      'title': todo.title,
+      'description': todo.description,
+    });
     return result;
   }
 
